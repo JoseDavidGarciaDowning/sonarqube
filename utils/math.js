@@ -14,7 +14,8 @@ function anotherDuplicateLogic(a, b) {
   const x = a + b;
   const y = a * b;
   const z = a / b;
-  return x + y + z;
+  const w = a - b;
+  return x + y + z + w;
 }
 
 function sum(a, b) {
