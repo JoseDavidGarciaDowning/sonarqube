@@ -1,104 +1,57 @@
 const express = require("express");
-const { execFile } = require("child_process");
-const { evaluate } = require("mathjs");
-const { sum } = require("./utils");
-const helmet = require("helmet"); // Protección adicional
-
+const cookieParser = require("cookie-parser");
+const csrf = require("csurf");
+const helmet = require("helmet");
 const app = express();
 const port = 3000;
 
-// ✅ Usa variables de entorno para secretos
-const API_SECRET = process.env.API_SECRET || "default_secret"; // Cargar desde `.env`
+// Middlewares de seguridad
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+app.use(cookieParser());
+app.use(helmet()); // Agrega encabezados de seguridad
+const csrfProtection = csrf({ cookie: true });
 
-// ✅ Middleware de seguridad
-app.use(helmet());
-
-// ✅ Ruta con evaluación segura de expresiones matemáticas
-app.get("/eval", (req, res) => {
-  const input = req.query.input;
-  if (!input) return res.status(400).send("Please provide input");
-
-  try {
-    const result = evaluate(input); // evalúa solo expresiones válidas
-    res.send(`Result: ${result}`);
-  } catch (err) {
-    console.error(err);
-    res.status(400).send("Invalid expression.");
-  }
+// 1. SQL Injection (consulta parametrizada simulada)
+app.get("/user", (req, res) => {
+  const username = req.query.username;
+  // Simulación segura (usualmente usarías algún ORM o librería como pg, mysql2)
+  const safeQuery = {
+    text: "SELECT * FROM users WHERE username = ?",
+    values: [username],
+  };
+  console.log("Consulta segura:", safeQuery);
+  res.send("Consulta segura ejecutada.");
 });
 
-// ✅ Previene XSS (codificando el contenido)
-const escapeHtml = (str) =>
-  str.replace(
-    /[&<>"']/g,
-    (char) =>
-      ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      }[char])
-  );
-
-app.get("/xss", (req, res) => {
-  const name = escapeHtml(req.query.name || "guest");
-  res.send(`<h1>Welcome ${name}</h1>`);
+// 2. XSS (escapar contenido o usar templates)
+app.get("/greet", (req, res) => {
+  const name = req.query.name?.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  res.send(`<h1>Hola, ${name}</h1>`);
 });
 
-// ✅ Prevención de inyección de comandos
-app.get("/ping", (req, res) => {
-  const host = req.query.host;
+// 3. CSRF con token
+app.post("/update-password", csrfProtection, (req, res) => {
+  const { password } = req.body;
+  // Solo continúa si el token CSRF es válido
+  res.send("Contraseña actualizada de manera segura.");
+});
 
-  if (!/^[a-zA-Z0-9.\-]+$/.test(host)) {
-    return res.status(400).send("Invalid host format");
-  }
-
-  // Usa execFile en lugar de exec para evitar inyecciones
-  execFile("ping", ["-c", "1", host], (error, stdout) => {
-    if (error) {
-      console.error(error);
-      return res.status(500).send("Failed to ping host");
-    }
-    res.send(`<pre>${stdout}</pre>`);
+// 4. Cookie segura
+app.get("/set-cookie", (req, res) => {
+  res.cookie("token", "abc123", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "Strict",
   });
+  res.send("Cookie segura seteada");
 });
 
-// ✅ Prevención de DoS (limitando la carga)
-app.get("/slow", (req, res) => {
-  const count = Math.min(parseInt(req.query.count) || 1e6, 1e6); // Limita el valor
-
-  let total = 0;
-  for (let i = 0; i < count; i++) {
-    total += i;
-  }
-
-  res.send(`Sum is ${total}`);
-});
-
-// ✅ No mostrar errores internos al usuario
-app.get("/crash", (_req, res) => {
-  try {
-    throw new Error("Something went wrong!");
-  } catch (err) {
-    console.error(err); // Log interno
-    res.status(500).send("Internal server error."); // No se filtra el mensaje
-  }
-});
-
-// ✅ Ruta segura con validación
-app.get("/sum", (req, res) => {
-  const a = parseInt(req.query.a || "0");
-  const b = parseInt(req.query.b || "0");
-
-  if (isNaN(a) || isNaN(b)) {
-    return res.status(400).send("Invalid numbers");
-  }
-
-  const result = sum(a, b);
-  res.send(`The sum is ${result}`);
+// 5. No exponer información sensible
+app.get("/debug", (req, res) => {
+  res.status(403).send("Acceso denegado");
 });
 
 app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+  console.log(`Servidor seguro en http://localhost:${port}`);
 });
