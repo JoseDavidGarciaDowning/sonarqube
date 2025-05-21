@@ -32,7 +32,7 @@ app.get("/greet", (req, res) => {
 
 // 3. CSRF con token
 app.post("/update-password", csrfProtection, (req, res) => {
-  const { password } = req.body;
+ 
   // Solo continúa si el token CSRF es válido
   res.send("Contraseña actualizada de manera segura.");
 });

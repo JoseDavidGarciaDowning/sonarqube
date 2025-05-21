@@ -18,9 +18,6 @@ function anotherDuplicateLogic(a, b) {
   return x + y + z + w;
 }
 
-function sum(a, b) {
-  return a + b;
-}
 
 
 
