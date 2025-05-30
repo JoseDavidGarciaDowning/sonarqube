@@ -1,24 +1,26 @@
 const express = require("express");
 const mysql = require("mysql2");
+const bodyParser = require("body-parser");
+
 const app = express();
+app.use(bodyParser.json());
 
 const db = mysql.createConnection({
   host: "localhost",
-  user: "root",
-  password: "tu_password",
-  database: "demo",
+  user: "admin",
+  password: "admin123",
+  database: "testdb",
 });
 
-app.get("/user", (req, res) => {
-  const username = req.query.username;
-  
+app.post("/create-user", (req, res) => {
+  const { username, email } = req.body;
 
-  const query = `SELECT * FROM users WHERE username = '${username}'`; //
+  const query = `INSERT INTO users (username, email) VALUES ('${username}', '${email}')`; // Inseguro
 
-  db.query(query, (err, results) => {
-    if (err) return res.status(500).send("Error en la base de datos");
-    res.json(results);
+  db.query(query, (err, result) => {
+    if (err) return res.status(500).send("Error al crear usuario");
+    res.send("Usuario creado correctamente");
   });
 });
 
-app.listen(3000, () => console.log("Servidor iniciado en puerto 3000"));
+app.listen(4000, () => console.log("Servidor corriendgito en puerto 4000"));
